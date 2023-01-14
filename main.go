@@ -6,7 +6,16 @@ import (
 	"os/exec"
 )
 
-func main()  {
+func prepareCmd(sourcePath, osys, arch string) *exec.Cmd {
+	destPath := fmt.Sprintf("%s/cmd/%s/%s/", os.Args[1], osys, arch)
+	cmd := exec.Command("go", "build", "-ldflags", "\"-s -w\"", "-o", destPath, sourcePath)
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOOS=%s", osys))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOARCH=%s", arch))
+	return cmd
+}
+
+func main() {
 	argsLen := len(os.Args)
 	if len(os.Args) != 2 {
 		fmt.Fprintf(os.Stderr, "Wrong number of arguments, 1 wanted, %d given.\n", argsLen)
@@ -19,14 +28,14 @@ func main()  {
 		os.Exit(1)
 	}
 
+	sourcePath := fmt.Sprintf("%s/...", os.Args[1])
 	for _, osys := range []string{"darwin", "windows", "linux"} {
 		for _, arch := range []string{"amd64", "arm64"} {
 			if osys == "windows" && arch == "arm64" {
 				continue
 			}
-			cmd := exec.Command(fmt.Sprintf("GOOS=%s GOARCH=%s go build -ldflags \"-s -w\" -o %s/cmd/%s/%s/ %s/...", osys, arch, os.Args[1], osys, arch, os.Args[1]))
-			_, err := cmd.Output()
 
+			_, err := prepareCmd(sourcePath, osys, arch).Output()
 			if err != nil {
 				fmt.Printf("OS: %s, ARCH: %s -> compilation failed:\n%s\n", osys, arch, err.Error())
 				continue
